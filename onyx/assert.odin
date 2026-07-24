@@ -3,9 +3,9 @@ package onyx
 import "core:log"
 import sdl "vendor:sdl3"
 
-assert_panic :: proc(condition: bool, msg: string, loc := #caller_location) {
+assert_panic :: proc(condition: bool, args: ..any, loc := #caller_location) {
     if !condition {
-        log.panicf("%s", msg, location = loc)
+        log.panic(..args, location = loc)
     }
 }
 

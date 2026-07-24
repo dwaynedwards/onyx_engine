@@ -10,7 +10,7 @@ GameContext :: struct {
 @(private="file")
 g_game: ^GameContext
 
-CORNFLOWER_BLUE :[4]f32 : { 0.332, 0.554, 0.929, 1.0 }
+CORNFLOWER_BLUE :[4]f64 : { 0.332, 0.554, 0.929, 1.0 }
 
 @(export)
 onyx_startup :: proc(args: []string) -> onyx.Result {
@@ -22,7 +22,7 @@ onyx_startup :: proc(args: []string) -> onyx.Result {
 
     g_game = new(GameContext)
     g_game.window = onyx.window_create(config)
-    g_game.renderer = onyx.renderer_create(g_game.window)
+    g_game.renderer = onyx.renderer_create(.Gpu, g_game.window)
 
     return onyx.Result.CONTINUE
 }

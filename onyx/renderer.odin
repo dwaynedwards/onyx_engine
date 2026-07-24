@@ -1,42 +1,56 @@
 package onyx
 
-import "core:log"
 import sdl "vendor:sdl3"
 
 RendererHandle :: rawptr
 
+RendererType :: enum {
+    Software,
+    Gpu,
+}
+
 Renderer :: struct {
+    type: RendererType,
     handle: RendererHandle,
 }
 
-RendererClearColour :: [4]f32
+RendererClearColour :: [4]f64
 
 renderer_begin :: proc(renderer: ^Renderer, clear_colour: RendererClearColour) {
-    r, g, b, a := clear_colour.r, clear_colour.g, clear_colour.b, clear_colour.a
-    sdl.SetRenderDrawColorFloat(cast(^sdl.Renderer)renderer.handle, r, g, b, a)
-    sdl.RenderClear(cast(^sdl.Renderer)renderer.handle)
+    if renderer.type == .Software {
+        renderer_sotfware_begin(renderer, clear_colour)
+    } else {
+        when ODIN_OS == .Darwin {
+            renderer_metal_begin(renderer, clear_colour)
+        }
+    }
 }
 renderer_end :: proc(renderer: ^Renderer) {
-    sdl.RenderPresent(cast(^sdl.Renderer)renderer.handle)
+    if renderer.type == .Software {
+        renderer_software_end(renderer)
+    } else {
+        when ODIN_OS == .Darwin {
+            renderer_metal_end(renderer)
+        }
+    }
 }
 
-renderer_create :: proc(window: ^Window, alloc := context.allocator, loc := #caller_location) -> (renderer: ^Renderer) {
-    renderer = new(Renderer, alloc, loc)
+renderer_create :: proc(type: RendererType, window: ^Window, alloc := context.allocator, loc := #caller_location) -> (renderer: ^Renderer) {
+    renderer = new(Renderer, alloc)
     assert_panic(renderer != nil, "Failed to allocation Renderer memory")
 
-    driver: cstring
-    when ODIN_OS == .Darwin {
-        driver = set_driver_by_priority({ "metal", "gpu", "opengl", "software" })
+    _renderer: rawptr
+    if type == .Software {
+        _renderer = renderer_software_create(window, alloc)
     } else {
-        driver = set_driver_by_priority({ "gpu", "opengl", "software" })
+        when ODIN_OS == .Darwin {
+            _renderer = renderer_metal_create(window, alloc)
+        }
     }
+    assert_panic(_renderer != nil, "Failed to create Renderer")
 
-    assert_panic(driver != nil, "Failed to find driver for os: " + ODIN_OS_STRING)
-    log.infof("Selected driver: %s", driver)
-
-    renderer.handle = sdl.CreateRenderer(cast(^sdl.Window)window.handle, driver)
-    assert_sdl(renderer.handle != nil, "Failed to create SDL Renderer")
-    assert_sdl(sdl.SetRenderVSync(cast(^sdl.Renderer)renderer.handle, 1), "Failed to enable VSync")
+    renderer.handle = _renderer
+    renderer.type = type
 
     return
 }
@@ -46,8 +60,12 @@ renderer_destroy :: proc(renderer: ^Renderer) {
         return
     }
 
-    if renderer.handle != nil{
-        sdl.DestroyRenderer(cast(^sdl.Renderer)renderer.handle)
+    if renderer.type == .Software {
+        renderer_software_destroy(renderer)
+    } else {
+        when ODIN_OS == .Darwin {
+            renderer_metal_destroy(renderer)
+        }
     }
 
     free(renderer)

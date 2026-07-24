@@ -4,10 +4,8 @@ import "core:c"
 import "core:strings"
 import sdl "vendor:sdl3"
 
-WindowHandle :: rawptr
-
 Window :: struct {
-    handle: WindowHandle,
+    handle: ^sdl.Window,
     width: u32,
     height: u32,
 }
@@ -22,9 +20,10 @@ window_create :: proc (config: Config, alloc:= context.allocator, loc := #caller
     window = new(Window, alloc, loc)
     assert_panic(window != nil, "Failed to allocation Window memory")
 
-    window.handle = sdl.CreateWindow(title, cast(c.int)config.width, cast(c.int)config.height, flags)
-    assert_sdl(window.handle != nil, "Failed to create SDL Window")
+    _window := sdl.CreateWindow(title, cast(c.int)config.width, cast(c.int)config.height, flags)
+    assert_sdl(_window != nil, "Failed to create SDL Window")
 
+    window.handle = _window
     window.width = config.width
     window.height = config.height
 
@@ -37,7 +36,7 @@ window_destroy :: proc (window: ^Window) {
     }
 
     if window.handle != nil {
-        sdl.DestroyWindow(cast(^sdl.Window)window.handle)
+        sdl.DestroyWindow(window.handle)
     }
 
     free(window)
